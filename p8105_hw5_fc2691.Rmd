@@ -1,0 +1,67 @@
+---
+title: "p8105_hw5_fc2691"
+author: "FC"
+date: "11/15/2021"
+output: html_document
+---
+## Problem 1  
+```{r message = FALSE}
+library(readr)
+library(tidyverse)
+
+url = "https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv"
+
+homi_data <- read_csv(url(url))
+```
+There are total `r ncol(homi_data)` variables and `r nrow(homi_data)` observations in this raw file. It describes each incidents in details with the time, location, the offenders' personal information and the arrest results.  
+
+```{r message = FALSE}
+# Clean data of homicides
+homi_data_raw <-
+  homi_data %>% 
+  mutate(city_state = paste(city, state, sep = ", "))
+# Summarize total number of homicides in cities. 
+homi_city_count <- 
+  homi_data_raw %>% 
+  group_by(city_state) %>% 
+  summarise(homi_count = n())
+# Count number of unsolved homicides. 
+homi_unsol_count <- 
+  homi_data_raw %>% 
+  filter(disposition == "Closed without arrest" | disposition == "Open/No arrest") %>%
+  group_by(city_state, disposition) %>% 
+  summarise(homi_unsol_count = n())
+
+# Estimate the proportion of unsolved homicides. 
+# Build function to calculate
+prop.test = function(x) {
+  homi_unsol_count %>%
+    filter(city_state == x) %>% 
+    prop.table()
+}
+# prop.test("Baltimore, MD")
+
+
+```
+
+## Problem 2
+```{r}
+# Data frame containing all files names. 
+data_path <- "data"
+file_list = list.files(data_path) %>%
+  data.frame()
+
+purrr::map()
+```
+
+## Problem 3
+```{r}
+library(tidyverse)
+
+set.seed(10)
+
+iris_with_missing = iris %>% 
+  map_df(~replace(.x, sample(1:150, 20), NA)) %>%
+  mutate(Species = as.character(Species))
+```
+
