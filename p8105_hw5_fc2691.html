@@ -180,6 +180,7 @@ library(knitr)
 library(rvest)
 library(broom)
 library(dplyr)
+library(fs)
 
 url = &quot;https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv&quot;
 
@@ -577,12 +578,13 @@ results_df %&gt;%
 </div>
 <div id="problem-2" class="section level2">
 <h2>Problem 2</h2>
-<pre class="r"><code># # Data frame containing all files names. 
-# data_path &lt;- &quot;data&quot;
-# file_list = list.files(data_path) %&gt;%
-#   data.frame()
+<pre class="r"><code># # # Data frame containing all files names. 
+# file_list &lt;- 
+#   tibble(files = list.files(&quot;data&quot;))  
 # 
-# purrr::map()</code></pre>
+# combine_csv &lt;-
+#   file_list %&gt;% 
+#   map(file_list$files, read_csv) %&gt;% </code></pre>
 </div>
 <div id="problem-3" class="section level2">
 <h2>Problem 3</h2>
@@ -592,7 +594,36 @@ set.seed(10)
 
 iris_with_missing = iris %&gt;% 
   map_df(~replace(.x, sample(1:150, 20), NA)) %&gt;%
-  mutate(Species = as.character(Species))</code></pre>
+  mutate(Species = as.character(Species))
+
+# Build missing function
+fill_in_missing &lt;- function(vector) {
+  if (is.numeric(vector)) {
+    vector = ifelse(is.na(vector), mean(vector, na.rm = TRUE), vector)
+  }
+  if (is.character(vector)) {
+    vector = ifelse(is.na(vector), &quot;virginica&quot;, vector)
+  }
+  else {
+    vector = ifelse(is.na(vector), &quot;ERROR&quot;, vector)
+  }
+}
+iris_no_missing &lt;- map_dfr(iris_with_missing, fill_in_missing)
+iris_no_missing</code></pre>
+<pre><code>## # A tibble: 150 × 5
+##    Sepal.Length Sepal.Width Petal.Length Petal.Width Species
+##           &lt;dbl&gt;       &lt;dbl&gt;        &lt;dbl&gt;       &lt;dbl&gt; &lt;chr&gt;  
+##  1         5.1          3.5         1.4         0.2  setosa 
+##  2         4.9          3           1.4         0.2  setosa 
+##  3         4.7          3.2         1.3         0.2  setosa 
+##  4         4.6          3.1         1.5         1.19 setosa 
+##  5         5            3.6         1.4         0.2  setosa 
+##  6         5.4          3.9         1.7         0.4  setosa 
+##  7         5.82         3.4         1.4         0.3  setosa 
+##  8         5            3.4         1.5         0.2  setosa 
+##  9         4.4          2.9         1.4         0.2  setosa 
+## 10         4.9          3.1         3.77        0.1  setosa 
+## # … with 140 more rows</code></pre>
 </div>
 
 
