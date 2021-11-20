@@ -8,10 +8,14 @@ output: html_document
 ```{r message = FALSE}
 library(readr)
 library(tidyverse)
+library(knitr)
+library(rvest)
+library(broom)
+library(dplyr)
 
 url = "https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv"
 
-homi_data <- read_csv(url(url))
+homi_data <- read_csv(url(url), na = c("", "Unknown"))
 ```
 There are total `r ncol(homi_data)` variables and `r nrow(homi_data)` observations in this raw file. It describes each incidents in details with the time, location, the offenders' personal information and the arrest results.  
 
@@ -19,39 +23,118 @@ There are total `r ncol(homi_data)` variables and `r nrow(homi_data)` observatio
 # Clean data of homicides
 homi_data_raw <-
   homi_data %>% 
-  mutate(city_state = paste(city, state, sep = ", "))
+  # mutate(city_state = str_c(city, ", ", state))
+  mutate(city_state = paste(city, state, sep = ", ")) %>% 
+  relocate(city_state) %>% 
+  mutate(
+    resolution = case_when(
+      disposition == "Closed without arrest" ~ "unsolved", 
+      disposition == "Open/No arrest" ~ "unsolved", 
+      disposition == "Closed by arrest" ~ "solved"
+  )) %>% 
+  filter(city_state != "Tulsa, AL")
 # Summarize total number of homicides in cities. 
 homi_city_count <- 
   homi_data_raw %>% 
-  group_by(city_state) %>% 
-  summarise(homi_count = n())
+  count(city_state) %>% 
+  rename(homi_count = n)
+
 # Count number of unsolved homicides. 
 homi_unsol_count <- 
   homi_data_raw %>% 
-  filter(disposition == "Closed without arrest" | disposition == "Open/No arrest") %>%
-  group_by(city_state, disposition) %>% 
-  summarise(homi_unsol_count = n())
+  filter(resolution == "unsolved") %>%
+  count(city_state) %>% 
+  rename(unsol_count = n)
+# Joint table of total counts of homicides and unsolved homicides. 
+homi_joint_count = left_join(homi_city_count, homi_unsol_count, by = "city_state")
+kable(homi_joint_count)
 
-# Estimate the proportion of unsolved homicides. 
-# Build function to calculate
-prop.test = function(x) {
-  homi_unsol_count %>%
-    filter(city_state == x) %>% 
-    prop.table()
-}
+# Focus on Baltimore, MD
+baltimore_df <- 
+  homi_data_raw %>% 
+  filter(city_state == "Baltimore, MD") %>% 
+  summarize(unsolved_n = sum(resolution == "unsolved"), 
+            total_n = n()) 
+
 # prop.test("Baltimore, MD")
+baltimore_test <- 
+  prop.test(baltimore_df$unsolved_n, baltimore_df$total_n)
+# prop.test(baltimore_df %>% pull(unsolved_n), baltimore_df %>% pull(total_n))
+
+baltimore_test %>% 
+  broom::tidy()
+
+# Write function-test across several cities
+prop_test_function <- function(city_df) {
+  city_summary <-
+    city_df %>% 
+    summarize(
+      unsolved_n = sum(resolution == "unsolved"), 
+      total_n = n()
+    ) 
+  city_test <- 
+    prop.test(
+      city_summary$unsolved_n, 
+      city_summary$total_n)
+  
+  return(city_test)
+}
+
+balti_df <- 
+  homi_data_raw %>% 
+  filter(city_state == "Baltimore, MD") 
+prop_test_function(balti_df)
+
+homi_data_raw %>% 
+  filter(city_state == "Albuquerque, NM") %>% 
+  prop_test_function()
+
+# Iterate across all cities
+results_df <-
+  homi_data_raw %>% 
+  nest(data = uid:resolution) %>% 
+  mutate(
+    city_test = map(data, prop_test_function),
+    tidy_results = map(city_test, broom::tidy)
+  ) %>% 
+  dplyr::select(city_state, tidy_results) %>%
+  unnest(tidy_results) %>% 
+  dplyr::select(city_state, estimate, starts_with("conf"))
+
+# Code above learned from OH using function. 
+# # Run prop.test for all cities
+# city_df <- 
+#   homi_data_raw %>% 
+#   group_by(city_state) %>% 
+#   summarize(unsolved_n = sum(resolution == "unsolved"), 
+#             total_n = n()) 
+# 
+# city_test <- city_df %>%
+#   mutate(
+#     city_test = purrr::map2(unsolved_n, total_n, prop.test),
+#     city_test = purrr::map(city_test, tidy)
+#   ) %>%
+#   unnest(city_test) %>% 
+#   dplyr::select(city_state, estimate, conf.low, conf.high)
 
 
+# Create plots for each city
+results_df %>% 
+  mutate(city_state = fct_reorder(city_state, estimate)) %>% 
+  ggplot(aes(x = city_state, y = estimate)) + 
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 ```
 
 ## Problem 2
 ```{r}
-# Data frame containing all files names. 
-data_path <- "data"
-file_list = list.files(data_path) %>%
-  data.frame()
-
-purrr::map()
+# # Data frame containing all files names. 
+# data_path <- "data"
+# file_list = list.files(data_path) %>%
+#   data.frame()
+# 
+# purrr::map()
 ```
 
 ## Problem 3
