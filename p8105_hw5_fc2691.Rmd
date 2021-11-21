@@ -130,13 +130,39 @@ results_df %>%
 
 ## Problem 2
 ```{r}
-# # # Data frame containing all files names. 
-# file_list <- 
-#   tibble(files = list.files("data"))  
-# 
-# combine_csv <-
-#   file_list %>% 
-#   map(file_list$files, read_csv) %>% 
+# # Data frame containing all files names.
+file_list <-
+  tibble(files = list.files("./data")) 
+
+# Map data
+file_df_raw <- 
+  file_list %>% 
+  mutate(
+    file_path = paste("./data", files, sep = '/'),
+    file_content = map(file_path, read_csv)
+  ) %>%
+  unnest(file_content)
+
+# Clean data
+file_df_clean <-
+  file_df_raw %>% 
+  select(-file_path) %>% 
+  mutate(files = sub(".csv", "", files)) %>%
+  separate(files, into = c("control_arm", "subject_ID"), sep = "_") %>%
+  pivot_longer(
+    week_1:week_8,
+    names_to = "week_id", 
+    values_to = "data")
+file_df_clean
+
+# Make a spahetti plot. 
+obs_vis_plot = 
+  file_df_clean %>% 
+  ggplot(aes(x = week_id, y = data)) +
+    geom_violin(fill = "grey", color = "grey") +
+    theme_classic() +
+    theme(legend.position = "bottom")
+obs_vis_plot
 
 ```
 
