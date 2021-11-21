@@ -48,7 +48,7 @@ homi_unsol_count <-
   rename(unsol_count = n)
 # Joint table of total counts of homicides and unsolved homicides. 
 homi_joint_count = left_join(homi_city_count, homi_unsol_count, by = "city_state")
-kable(homi_joint_count)
+kable(homi_joint_count[1:10,])
 
 # Focus on Baltimore, MD
 baltimore_df <- 
@@ -129,7 +129,7 @@ results_df %>%
 ```
 
 ## Problem 2
-```{r}
+```{r message = FALSE}
 # # Data frame containing all files names.
 file_list <-
   tibble(files = list.files("./data")) 
@@ -146,28 +146,37 @@ file_df_raw <-
 # Clean data
 file_df_clean <-
   file_df_raw %>% 
+  janitor::clean_names() %>%
   select(-file_path) %>% 
   mutate(files = sub(".csv", "", files)) %>%
-  separate(files, into = c("control_arm", "subject_ID"), sep = "_") %>%
   pivot_longer(
     week_1:week_8,
     names_to = "week_id", 
-    values_to = "data")
+    values_to = "data", 
+    names_prefix = "week_") %>% 
+  rename(obs_id = files)
 file_df_clean
 
 # Make a spahetti plot. 
 obs_vis_plot = 
   file_df_clean %>% 
-  ggplot(aes(x = week_id, y = data)) +
-    geom_violin(fill = "grey", color = "grey") +
-    theme_classic() +
-    theme(legend.position = "bottom")
-obs_vis_plot
+  ggplot(aes(x = week_id, y = data, color = obs_id, group = obs_id)) + 
+    geom_line(alpha = 0.5) + 
+    theme_classic() + 
+    theme(legend.position = "bottom") + 
+    labs(
+     title = "Longitudinal study that included a control arm and an experimental arm over time", 
+     x = "week(1~8)", 
+     y = "results", 
+  ) 
+obs_vis_plot 
 
 ```
 
+From the spaghetti plot, we could observed the results collected from the experimental arm had on average higher data compared to the control arm according to each individual. For experimental group, the data seemed in a slightly increasing trending through week1 to week 8 while control group looked almost stable.   
+
 ## Problem 3
-```{r}
+```{r message = FALSE}
 library(tidyverse)
 
 set.seed(10)
